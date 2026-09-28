@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>restpnl</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: одна колонка — шапка, строка метрик, форма (сворачивается), фильтры, таблица сделок */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --line:#e3e6eb; --fg:#15181c; --muted:#6b727d;
+  --accent:#6b5cf0; --accent-soft:rgba(107,92,240,.10);
+  --win:#1f9d5c; --moon:#b98a12; --loss:#d0453c; --scam:#c9661f; --be:#6b727d;
+  --f-display:"Unbounded",system-ui,sans-serif;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1013; --surface:#15181c; --line:#252a31; --fg:#e7e9ec; --muted:#8b929c;
+  --accent:#9d90ff; --accent-soft:rgba(157,144,255,.12);
+  --win:#43c07f; --moon:#e0b848; --loss:#ee6b62; --scam:#ec9448; --be:#8b929c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1013; --surface:#15181c; --line:#252a31; --fg:#e7e9ec; --muted:#8b929c;
+  --accent:#9d90ff; --accent-soft:rgba(157,144,255,.12);
+  --win:#43c07f; --moon:#e0b848; --loss:#ee6b62; --scam:#ec9448; --be:#8b929c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 60px;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0;line-height:1}
+.brand h1 span{color:var(--accent)}
+.brand p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.hdr-actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{font:inherit;font-size:13px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px}
+button.ghost:hover{color:var(--fg)}
+button.danger{color:var(--loss)}
+
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.stat{padding:14px 16px;border-left:1px solid var(--line);min-width:0}
+.stat:first-child{border-left:0}
+.stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stat .v{font-family:var(--f-mono);font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .s{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.pos{color:var(--win)} .neg{color:var(--loss)}
+
+.bar{height:6px;border-radius:3px;display:flex;overflow:hidden;background:var(--line)}
+.bar i{display:block;height:100%}
+
+.panel{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.panel-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;gap:10px}
+.panel-h h2{margin:0;font-size:15px;font-weight:600}
+form{padding:0 18px 18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f.w2{grid-column:span 2} .f.w4{grid-column:1/-1}
+label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:14px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input.mono{font-family:var(--f-mono);font-size:13px}
+textarea{resize:vertical;min-height:62px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;padding:5px 10px;border-radius:99px;border:1px solid var(--line);background:var(--bg);cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{border-color:var(--c,var(--accent));color:var(--c,var(--accent));background:var(--accent-soft)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--c);display:inline-block}
+.form-foot{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.preview{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:0 18px 14px}
+.filters input{max-width:240px}
+.filters select{width:auto}
+
+.tbl{overflow-x:auto;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:960px}
+th{text-align:left;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer}
+th.num,td.num{text-align:right}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.row:hover td{background:var(--accent-soft)}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tk{font-weight:600}
+.ca{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);display:flex;gap:8px;margin-top:2px;flex-wrap:wrap}
+.ca a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--muted)}
+.ca a:hover{color:var(--accent);border-color:var(--accent)}
+.pat{color:var(--muted);max-width:220px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:99px;border:1px solid var(--c);color:var(--c);white-space:nowrap}
+.tag{font-size:12px;color:var(--muted);white-space:nowrap}
+.acts{white-space:nowrap}
+tr.detail td{background:var(--bg);color:var(--muted);font-size:13px}
+.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.detail-grid b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:500;margin-bottom:3px}
+.detail-grid p{margin:0;color:var(--fg);white-space:pre-wrap}
+.empty{padding:40px 18px;text-align:center;color:var(--muted)}
+.sample-note{margin:0 18px 14px;padding:10px 14px;border-radius:8px;background:var(--accent-soft);font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.confirm{display:inline-flex;gap:6px;align-items:center;font-size:12px}
+
+.io{padding:0 18px 18px;display:flex;flex-direction:column;gap:10px}
+.io textarea{font-family:var(--f-mono);font-size:12px;min-height:140px}
+.io .row-b{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+
+@media (max-width:860px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat{border-left:0;border-top:1px solid var(--line)}
+  .stat:nth-child(-n+2){border-top:0}
+  .stat:nth-child(even){border-left:1px solid var(--line)}
+  .stat:last-child{grid-column:1/-1;border-left:0}
+  form{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .f.w2{grid-column:1/-1}
+  .detail-grid{grid-template-columns:1fr}
+}
+@media (max-width:480px){.wrap{padding-inline:16px} form{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>rest<span>pnl</span></h1>
+      <p>Журнал мемкоин-сделок · Solana</p>
+    </div>
+    <div class="hdr-actions">
+      <button id="btnIO" type="button">Экспорт / импорт</button>
+      <button id="btnNew" class="primary" type="button">+ Сделка</button>
+    </div>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Статистика"></section>
+
+  <section class="panel" id="ioPanel" hidden>
+    <div class="panel-h"><h2>Бэкап сделок</h2><button class="ghost" type="button" id="ioClose">Закрыть</button></div>
+    <div class="io">
+      <p style="margin:0;color:var(--muted);font-size:13px">Сделки хранятся только в этом браузере. Скопируйте JSON и сохраните у себя, чтобы не потерять их или перенести на другое устройство.</p>
+      <textarea id="ioText" spellcheck="false" aria-label="JSON сделок"></textarea>
+      <div class="row-b">
+        <button type="button" id="ioCopy">Скопировать JSON</button>
+        <button type="button" id="ioImport">Импортировать из поля</button>
+        <label class="btn" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--fg);cursor:pointer">Загрузить файл<input type="file" id="ioFile" accept=".json,application/json" hidden></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="formPanel" hidden>
+    <div class="panel-h"><h2 id="formTitle">Новая сделка</h2><button class="ghost" type="button" id="formClose">Свернуть</button></div>
+    <form id="tradeForm" autocomplete="off">
+      <div class="f"><label for="fDate">Дата</label><input type="date" id="fDate" required></div>
+      <div class="f"><label for="fTicker">Тикер</label><input id="fTicker" placeholder="$WIF" required></div>
+      <div class="f w2"><label for="fCa">Контракт (CA)</label><input id="fCa" class="mono" placeholder="адрес токена на Solana"></div>
+
+      <div class="f"><label for="fPlatform">Площадка</label>
+        <select id="fPlatform"><option>pump.fun</option><option>Raydium</option><option>Meteora</option><option>letsbonk</option><option>Moonshot</option><option>Другое</option></select></div>
+      <div class="f"><label for="fSize">Вход, SOL</label><input id="fSize" class="mono" inputmode="decimal" placeholder="0.5"></div>
+      <div class="f w2"><label>Нарратив</label><div class="chips" id="narrChips"></div></div>
+
+      <div class="f"><label for="fEntry">Вход (MC)</label><input id="fEntry" class="mono" placeholder="45k" required></div>
+      <div class="f"><label for="fAth">ATH (MC)</label><input id="fAth" class="mono" placeholder="1.2m"></div>
+      <div class="f"><label for="fExit">Выход (MC)</label><input id="fExit" class="mono" placeholder="380k, пусто если держу"></div>
+      <div class="f"><label for="fStatus">Статус</label><select id="fStatus"></select></div>
+
+      <div class="f w4"><label for="fPatterns">Дев / паттерны</label><input id="fPatterns" placeholder="Дев держит 3%, бандлы чистые, KOL заходил на 30k…"></div>
+      <div class="f w2"><label for="fMarket">Рынок</label><textarea id="fMarket" placeholder="SOL растёт, мемы горячие, раннеры каждый час…"></textarea></div>
+      <div class="f w2"><label for="fPsy">Психология</label><textarea id="fPsy" placeholder="FOMO, вышел рано, пересидел…"></textarea></div>
+      <div class="f w4"><label for="fNotes">Заметки / выводы</label><textarea id="fNotes" placeholder="Что сделаю иначе в следующий раз"></textarea></div>
+
+      <div class="form-foot">
+        <span class="preview" id="preview">ROI —</span>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="ghost" id="formCancel">Отмена</button>
+          <button type="submit" class="primary" id="formSubmit">Сохранить</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-h"><h2>Сделки</h2><span class="tag" id="countTag"></span></div>
+    <div id="sampleNote" class="sample-note" hidden>
+      <span>Это примеры, чтобы было видно, как выглядит журнал. Ваших сделок пока нет.</span>
+      <button type="button" id="clearSamples">Убрать примеры</button>
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Поиск по тикеру, CA, заметкам" aria-label="Поиск">
+      <select id="fltStatus" aria-label="Фильтр по статусу"><option value="">Все статусы</option></select>
+      <select id="fltNarr" aria-label="Фильтр по нарративу"><option value="">Все нарративы</option></select>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr>
+          <th data-sort="date">Дата</th>
+          <th data-sort="ticker">Монета</th>
+          <th>Дев / паттерны</th>
+          <th data-sort="narrative">Нарратив</th>
+          <th class="num" data-sort="entry">Вход</th>
+          <th class="num" data-sort="ath">ATH</th>
+          <th class="num" data-sort="exit">Выход</th>
+          <th class="num" data-sort="roi">ROI</th>
+          <th class="num" data-sort="pnl">PnL, SOL</th>
+          <th data-sort="status">Статус</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>Нет сделок под этот фильтр. Нажмите «+ Сделка», чтобы записать первую.</div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const STATUSES = {
+  win:{l:"Win",c:"var(--win)"}, moon:{l:"Moonbag",c:"var(--moon)"}, loss:{l:"Loss",c:"var(--loss)"},
+  scam:{l:"Scam / rug",c:"var(--scam)"}, be:{l:"Break-even",c:"var(--be)"}
+};
+const NARRS = ["AI","Cat/Dog","PolitFi","Meme","Tech/DeFi","Celebrity","Другое"];
+const KEY = "restpnl.trades.v1";
+const $ = s => document.querySelector(s);
+
+const SAMPLES = [
+  {id:"s1",sample:true,date:"2026-09-24",ticker:"$MOCHI",ca:"",platform:"pump.fun",size:0.5,narrative:"Cat/Dog",entry:38000,ath:2100000,exit:640000,status:"win",patterns:"Дев продал на бонд, холдеры растут ровно",market:"Кото-сезон, SOL у хаёв",psy:"Скинул половину на 5x, остаток на 16x",notes:"Пример записи"},
+  {id:"s2",sample:true,date:"2026-09-25",ticker:"$AGNT",ca:"",platform:"Raydium",size:1,narrative:"AI",entry:420000,ath:610000,exit:230000,status:"loss",patterns:"Перегретый KOL-колл",market:"AI-мемы остывают",psy:"FOMO, зашёл без плана",notes:"Не заходить после 3 KOL-коллов подряд"},
+  {id:"s3",sample:true,date:"2026-09-26",ticker:"$RUGGY",ca:"",platform:"pump.fun",size:0.3,narrative:"Meme",entry:22000,ath:31000,exit:0,status:"scam",patterns:"Бандл 40% на старте",market:"—",psy:"Проигнорил бандл-чек",notes:"Всегда смотреть бандлы"},
+  {id:"s4",sample:true,date:"2026-09-28",ticker:"$ORBIT",ca:"",platform:"Meteora",size:0.8,narrative:"Tech/DeFi",entry:900000,ath:3400000,exit:null,status:"moon",patterns:"Реальный продукт, команда доксед",market:"Ротация в DeFi",psy:"Спокойно держу",notes:"Мунбег после вывода тела"}
+];
+
+let trades = load();
+let editingId = null, expanded = new Set(), confirmDel = null;
+let sort = {k:"date",dir:-1};
+let formNarr = "Meme";
+
+function load(){
+  try{ const r = localStorage.getItem(KEY); if(r){ const a = JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
+  return SAMPLES.map(x=>({...x}));
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(trades)); }catch(e){ toast("Браузер не дал сохранить. Сделайте экспорт JSON."); } }
+
+function parseMc(v){
+  if(v==null) return null; v=String(v).trim().toLowerCase().replace(/\s|\$|,/g,"").replace("к","k").replace("м","m");
+  if(v==="") return null;
+  const m = v.match(/^(\d*\.?\d+)([kmb])?$/); if(!m) return NaN;
+  return parseFloat(m[1]) * ({k:1e3,m:1e6,b:1e9}[m[2]]||1);
+}
+function fmtMc(n){
+  if(n==null||isNaN(n)) return "—"; if(n===0) return "$0";
+  if(n>=1e9) return "$"+(n/1e9).toFixed(2).replace(/\.?0+$/,"")+"B";
+  if(n>=1e6) return "$"+(n/1e6).toFixed(2).replace(/\.?0+$/,"")+"M";
+  if(n>=1e3) return "$"+(n/1e3).toFixed(1).replace(/\.0$/,"")+"K";
+  return "$"+Math.round(n);
+}
+function roi(t){ return (t.exit==null||!t.entry) ? null : (t.exit/t.entry-1)*100; }
+function athX(t){ return (t.ath&&t.entry) ? t.ath/t.entry : null; }
+function pnl(t){ const r=roi(t); return (r==null||!t.size) ? null : t.size*r/100; }
+function fmtPct(p){ if(p==null) return "—"; const s=p>0?"+":""; return s+(Math.abs(p)>=1000?Math.round(p).toLocaleString("ru-RU"):p.toFixed(1))+"%"; }
+function fmtX(x){ return x==null?"—":(x>=10?x.toFixed(0):x.toFixed(1))+"x"; }
+function fmtSol(n){ if(n==null) return "—"; return (n>0?"+":"")+n.toFixed(2)+" ◎"; }
+function cls(n){ return n==null?"":n>0?"pos":n<0?"neg":""; }
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function shortCa(ca){ return ca.length>12 ? ca.slice(0,4)+"…"+ca.slice(-4) : ca; }
+
+function renderStats(){
+  const closed = trades.filter(t=>roi(t)!=null);
+  const wins = trades.filter(t=>t.status==="win"||t.status==="moon").length;
+  const losses = trades.filter(t=>t.status==="loss"||t.status==="scam").length;
+  const wr = (wins+losses) ? wins/(wins+losses)*100 : null;
+  const avg = closed.length ? closed.reduce((a,t)=>a+roi(t),0)/closed.length : null;
+  const best = trades.reduce((b,t)=>{const x=athX(t); return x!=null&&(!b||x>b.x)?{x,t:t.ticker}:b;},null);
+  const bestRoi = closed.reduce((b,t)=>Math.max(b,roi(t)),-Infinity);
+  const total = trades.reduce((a,t)=>a+(pnl(t)||0),0);
+  const counts = Object.keys(STATUSES).map(k=>[k,trades.filter(t=>t.status===k).length]);
+  const n = trades.length||1;
+  $("#stats").innerHTML = `
+    <div class="stat"><div class="k">Сделок</div><div class="v">${trades.length}</div>
+      <div class="bar" style="margin-top:8px" title="Распределение по статусам">${counts.map(([k,c])=>c?`<i style="width:${c/n*100}%;background:${STATUSES[k].c}"></i>`:"").join("")}</div></div>
+    <div class="stat"><div class="k">Винрейт</div><div class="v">${wr==null?"—":wr.toFixed(0)+"%"}</div><div class="s">${wins}W / ${losses}L</div></div>
+    <div class="stat"><div class="k">Средний ROI</div><div class="v ${cls(avg)}">${fmtPct(avg)}</div><div class="s">по ${closed.length} закрытым</div></div>
+    <div class="stat"><div class="k">Лучший вход</div><div class="v">${best?fmtX(best.x):"—"}</div><div class="s">${best?esc(best.t)+" до ATH":"до ATH"}${isFinite(bestRoi)?" · выход "+fmtPct(bestRoi):""}</div></div>
+    <div class="stat"><div class="k">PnL</div><div class="v ${cls(total)}">${fmtSol(total)}</div><div class="s">сумма в SOL</div></div>`;
+}
+
+function filtered(){
+  const q=$("#q").value.trim().toLowerCase(), fs=$("#fltStatus").value, fn=$("#fltNarr").value;
+  const val = t => ({date:t.date,ticker:(t.ticker||"").toLowerCase(),narrative:t.narrative,entry:t.entry,ath:t.ath,exit:t.exit,roi:roi(t),pnl:pnl(t),status:t.status}[sort.k]);
+  return trades.filter(t=>(!fs||t.status===fs)&&(!fn||t.narrative===fn)&&
+      (!q||[t.ticker,t.ca,t.patterns,t.notes,t.psy,t.market].join(" ").toLowerCase().includes(q)))
+    .sort((a,b)=>{const x=val(a),y=val(b); if(x==null) return 1; if(y==null) return -1; return (x>y?1:x<y?-1:0)*sort.dir;});
+}
+
+function renderTable(){
+  const list = filtered();
+  $("#countTag").textContent = list.length===trades.length ? `${trades.length} всего` : `${list.length} из ${trades.length}`;
+  $("#sampleNote").hidden = !trades.some(t=>t.sample);
+  $("#empty").hidden = list.length>0;
+  document.querySelectorAll("th[data-sort]").forEach(th=>{
+    const base = th.textContent.replace(/ [↑↓]$/,""); th.textContent = base + (th.dataset.sort===sort.k?(sort.dir>0?" ↑":" ↓"):"");
+  });
+  $("#tbody").innerHTML = list.map(t=>{
+    const s=STATUSES[t.status]||STATUSES.be, r=roi(t), p=pnl(t), x=athX(t);
+    const links = t.ca ? `<a href="https://dexscreener.com/solana/${encodeURIComponent(t.ca)}" target="_blank" rel="noopener">dex</a><a href="https://gmgn.ai/sol/token/${encodeURIComponent(t.ca)}" target="_blank" rel="noopener">gmgn</a><a href="https://solscan.io/token/${encodeURIComponent(t.ca)}" target="_blank" rel="noopener">solscan</a><span title="${esc(t.ca)}">${esc(shortCa(t.ca))}</span>` : "";
+    const del = confirmDel===t.id
+      ? `<span class="confirm">Удалить? <button class="ghost danger" data-a="del-yes" data-id="${t.id}">Да</button><button class="ghost" data-a="del-no">Нет</button></span>`
+      : `<button class="ghost" data-a="edit" data-id="${t.id}" title="Изменить">Изм.</button><button class="ghost danger" data-a="del" data-id="${t.id}" title="Удалить">✕</button>`;
+    const row = `<tr class="row">
+      <td class="num" style="text-align:left">${esc(fmtDate(t.date))}</td>
+      <td><div class="tk">${esc(t.ticker)}${t.sample?' <span class="tag">пример</span>':""}</div><div class="ca"><span>${esc(t.platform||"")}</span>${links}</div></td>
+      <td class="pat">${esc(t.patterns)||"—"}</td>
+      <td><span class="tag">${esc(t.narrative)}</span></td>
+      <td class="num">${fmtMc(t.entry)}${t.size?`<div class="ca" style="justify-content:flex-end">${t.size} ◎</div>`:""}</td>
+      <td class="num">${fmtMc(t.ath)}<div class="ca" style="justify-content:flex-end">${fmtX(x)}</div></td>
+      <td class="num">${t.exit==null?'<span class="tag">держу</span>':fmtMc(t.exit)}</td>
+      <td class="num ${cls(r)}">${fmtPct(r)}</td>
+      <td class="num ${cls(p)}">${fmtSol(p)}</td>
+      <td><span class="st" style="--c:${s.c}"><span class="dot" style="--c:${s.c}"></span>${s.l}</span></td>
+      <td class="acts"><button class="ghost" data-a="exp" data-id="${t.id}" title="Заметки">${expanded.has(t.id)?"▴":"▾"}</button>${del}</td></tr>`;
+    const det = expanded.has(t.id) ? `<tr class="detail"><td colspan="11"><div class="detail-grid">
+      <div><b>Рынок</b><p>${esc(t.market)||"—"}</p></div><div><b>Психология</b><p>${esc(t.psy)||"—"}</p></div><div><b>Заметки</b><p>${esc(t.notes)||"—"}</p></div></div></td></tr>` : "";
+    return row+det;
+  }).join("");
+}
+function fmtDate(d){ if(!d) return "—"; const [y,m,dd]=d.split("-"); return `${dd}.${m}.${y.slice(2)}`; }
+function render(){ renderStats(); renderTable(); }
+
+/* form */
+function buildControls(){
+  $("#fStatus").innerHTML = Object.entries(STATUSES).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join("");
+  $("#fltStatus").innerHTML += Object.entries(STATUSES).map(([k,v])=>`<option value="${k}">${v.l}</option>`).join("");
+  $("#fltNarr").innerHTML += NARRS.map(n=>`<option>${n}</option>`).join("");
+  renderChips();
+}
+function renderChips(){
+  $("#narrChips").innerHTML = NARRS.map(n=>`<span class="chip" role="button" tabindex="0" aria-pressed="${n===formNarr}" data-n="${n}">${n}</span>`).join("");
+}
+$("#narrChips").addEventListener("click",e=>{const c=e.target.closest(".chip"); if(c){formNarr=c.dataset.n; renderChips();}});
+$("#narrChips").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.dataset.n){e.preventDefault();formNarr=e.target.dataset.n;renderChips();}});
+
+function openForm(t){
+  editingId = t?t.id:null;
+  $("#formTitle").textContent = t?`Правка: ${t.ticker}`:"Новая сделка";
+  $("#formSubmit").textContent = t?"Сохранить изменения":"Сохранить";
+  const today = new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  $("#fDate").value = t?.date||today; $("#fTicker").value=t?.ticker||""; $("#fCa").value=t?.ca||"";
+  $("#fPlatform").value=t?.platform||"pump.fun"; $("#fSize").value=t?.size??"";
+  $("#fEntry").value=t?.entry!=null?rawMc(t.entry):""; $("#fAth").value=t?.ath!=null?rawMc(t.ath):""; $("#fExit").value=t?.exit!=null?rawMc(t.exit):"";
+  $("#fStatus").value=t?.status||"win"; $("#fPatterns").value=t?.patterns||""; $("#fMarket").value=t?.market||"";
+  $("#fPsy").value=t?.psy||""; $("#fNotes").value=t?.notes||"";
+  formNarr = t?.narrative||"Meme"; renderChips(); updPreview();
+  $("#formPanel").hidden=false; $("#fTicker").focus({preventScroll:true});
+  $("#formPanel").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+}
+function rawMc(n){ return n>=1e6?(n/1e6)+"m":n>=1e3?(n/1e3)+"k":String(n); }
+function closeForm(){ $("#formPanel").hidden=true; editingId=null; }
+function updPreview(){
+  const e=parseMc($("#fEntry").value), a=parseMc($("#fAth").value), x=parseMc($("#fExit").value), s=parseFloat(String($("#fSize").value).replace(",","."));
+  const t={entry:e,ath:a,exit:x,size:isNaN(s)?null:s};
+  if([e,a,x].some(v=>Number.isNaN(v))){ $("#preview").textContent="MC пишите как 45k, 1.2m или 900000"; return; }
+  const r=roi(t),p=pnl(t);
+  $("#preview").innerHTML = `ROI <span class="${cls(r)}">${fmtPct(r)}</span> · до ATH ${fmtX(athX(t))}${p!=null?` · PnL <span class="${cls(p)}">${fmtSol(p)}</span>`:""}`;
+}
+["#fEntry","#fAth","#fExit","#fSize"].forEach(s=>$(s).addEventListener("input",updPreview));
+
+$("#tradeForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const entry=parseMc($("#fEntry").value), ath=parseMc($("#fAth").value), exit=parseMc($("#fExit").value);
+  if([entry,ath,exit].some(v=>Number.isNaN(v))||!entry){ toast("Проверьте MC: вход обязателен, формат 45k или 1.2m"); return; }
+  const size=parseFloat(String($("#fSize").value).replace(",","."));
+  let tk=$("#fTicker").value.trim(); if(tk&&!tk.startsWith("$")) tk="$"+tk.toUpperCase();
+  const rec={id:editingId||("t"+Date.now().toString(36)),date:$("#fDate").value,ticker:tk,ca:$("#fCa").value.trim(),
+    platform:$("#fPlatform").value,size:isNaN(size)?null:size,narrative:formNarr,entry,ath,exit,status:$("#fStatus").value,
+    patterns:$("#fPatterns").value.trim(),market:$("#fMarket").value.trim(),psy:$("#fPsy").value.trim(),notes:$("#fNotes").value.trim()};
+  if(!editingId) trades = trades.filter(t=>!t.sample);
+  trades = editingId ? trades.map(t=>t.id===editingId?rec:t) : [rec,...trades];
+  save(); toast(editingId?"Изменения сохранены":"Сделка записана"); closeForm(); render();
+});
+$("#btnNew").onclick=()=>openForm(null);
+$("#formClose").onclick=closeForm; $("#formCancel").onclick=closeForm;
+
+$("#tbody").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-a]"); if(!b) return; const id=b.dataset.id;
+  if(b.dataset.a==="edit") openForm(trades.find(t=>t.id===id));
+  if(b.dataset.a==="exp"){ expanded.has(id)?expanded.delete(id):expanded.add(id); renderTable(); }
+  if(b.dataset.a==="del"){ confirmDel=id; renderTable(); }
+  if(b.dataset.a==="del-no"){ confirmDel=null; renderTable(); }
+  if(b.dataset.a==="del-yes"){ trades=trades.filter(t=>t.id!==id); confirmDel=null; save(); render(); toast("Сделка удалена"); }
+});
+document.querySelectorAll("th[data-sort]").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.sort; sort = sort.k===k?{k,dir:-sort.dir}:{k,dir:k==="date"?-1:-1}; renderTable();
+}));
+["#q","#fltStatus","#fltNarr"].forEach(s=>$(s).addEventListener("input",renderTable));
+$("#clearSamples").onclick=()=>{ trades=trades.filter(t=>!t.sample); save(); render(); toast("Примеры убраны"); };
+
+/* export / import */
+$("#btnIO").onclick=()=>{ $("#ioText").value=JSON.stringify(trades.filter(t=>!t.sample),null,1); $("#ioPanel").hidden=!$("#ioPanel").hidden; };
+$("#ioClose").onclick=()=>$("#ioPanel").hidden=true;
+$("#ioCopy").onclick=()=>{
+  const v=$("#ioText").value;
+  navigator.clipboard?.writeText(v).then(()=>toast("JSON скопирован")).catch(()=>{ $("#ioText").select(); toast("Выделил текст, нажмите Ctrl+C"); })
+    ?? ($("#ioText").select(), toast("Выделил текст, нажмите Ctrl+C"));
+};
+function importJson(txt){
+  try{ const a=JSON.parse(txt); if(!Array.isArray(a)) throw 0;
+    const ok=a.filter(t=>t&&t.id&&t.ticker); const ids=new Set(trades.map(t=>t.id));
+    trades=[...trades.filter(t=>!t.sample),...ok.filter(t=>!ids.has(t.id))]; save(); render();
+    toast(`Импортировано: ${ok.filter(t=>!ids.has(t.id)).length}`);
+  }catch(e){ toast("Не получилось прочитать JSON. Вставьте текст, который дал экспорт."); }
+}
+$("#ioImport").onclick=()=>importJson($("#ioText").value);
+$("#ioFile").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>importJson(r.result); r.readAsText(f); e.target.value=""; };
+
+let tt; function toast(m){ const el=$("#toast"); el.textContent=m; el.classList.add("on"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("on"),2400); }
+
+buildControls(); render();
+</script>
+</body>
+</html>
